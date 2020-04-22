@@ -1,4 +1,5 @@
-演练教程的docker镜像构建仓库。
+Build End-to-End Streaming Application using Flink SQL、Kafka、MySQL、Elasticsearch and Kibana.
 
-教程文章：基于 Flink SQL、Kafka、MySQL、Elasticsearch、Kibana 构建端到端流式应用
-http://wuchong.me/blog/2020/02/25/demo-building-real-time-application-with-flink-sql/
+This is a repository to build the dockers which will be used in the tuturial. 
+
+Blog: http://wuchong.me/blog/2020/02/25/demo-building-real-time-application-with-flink-sql/
