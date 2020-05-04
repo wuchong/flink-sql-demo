@@ -2,7 +2,7 @@ version: '2.1'
 services:
   datagen:
     image: jark/datagen:0.1
-    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 1000"
+    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 2000"
     depends_on:
       - kafka
     environment:
