@@ -1,7 +1,38 @@
 version: '2.1'
 services:
+  sql-client:
+    image: jark/demo-sql-client:0.2
+    depends_on:
+      - kafka
+      - jobmanager
+      - elasticsearch
+    environment:
+      FLINK_JOBMANAGER_HOST: jobmanager
+      ZOOKEEPER_CONNECT: zookeeper
+      KAFKA_BOOTSTRAP: kafka
+      MYSQL_HOST: mysql
+      ES_HOST: elasticsearch
+  jobmanager:
+    image: flink:1.11.0-scala_2.11
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+  taskmanager:
+    image: flink:1.11.0-scala_2.11
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 10
   datagen:
-    image: jark/datagen:0.1
+    image: jark/datagen:0.2
     command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 2000"
     depends_on:
       - kafka
@@ -9,7 +40,7 @@ services:
       ZOOKEEPER_CONNECT: zookeeper
       KAFKA_BOOTSTRAP: kafka
   mysql:
-    image: jark/mysql-example:0.1
+    image: jark/mysql-example:0.2
     ports:
       - "3306:3306"
     environment:

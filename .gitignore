@@ -8,3 +8,4 @@ checkpoint
 target
 .DS_Store
 *.iml
+datagen/user_behavior.log

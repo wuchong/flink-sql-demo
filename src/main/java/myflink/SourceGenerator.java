@@ -31,10 +31,27 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.TimeZone;
 import java.util.function.Consumer;
 
 public class SourceGenerator {
+    /** Formatter for SQL string representation of a time value. */
+    static final DateTimeFormatter SQL_TIME_FORMAT = new DateTimeFormatterBuilder()
+        .appendPattern("HH:mm:ss")
+        .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+        .toFormatter();
+
+    /** Formatter for SQL string representation of a timestamp value (without UTC timezone). */
+    static final DateTimeFormatter SQL_TIMESTAMP_FORMAT = new DateTimeFormatterBuilder()
+        .append(DateTimeFormatter.ISO_LOCAL_DATE)
+        .appendLiteral(' ')
+        .append(SQL_TIME_FORMAT)
+        .toFormatter();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SourceGenerator.class);
     private static final long SPEED = 1000; // 每秒1000条
@@ -43,8 +60,9 @@ public class SourceGenerator {
     private static final File checkpoint = new File("checkpoint");
 
     public static void main(String[] args) {
-        File userBehaviorFile = new File("user_behavior.log");
+        File userBehaviorFile = new File("datagen/user_behavior.log");
         long speed = SPEED;
+        long endLine = Long.MAX_VALUE;
         Consumer<String> consumer = new ConsolePrinter();
 
         // parse arguments
@@ -78,6 +96,10 @@ public class SourceGenerator {
                     } else {
                         speed = Long.parseLong(spd);
                     }
+                    break;
+                case "--endline":
+                    String end = args[argOffset++];
+                    endLine = Long.parseLong(end);
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown parameter");
@@ -123,13 +145,14 @@ public class SourceGenerator {
                 String[] splits = line.split(",");
                 long ts = Long.parseLong(splits[4])*1000;
                 Instant instant = Instant.ofEpochMilli(ts + tz.getOffset(ts));
+                LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.of("Z"));
                 String outline = String.format(
                     "{\"user_id\": \"%s\", \"item_id\":\"%s\", \"category_id\": \"%s\", \"behavior\": \"%s\", \"ts\": \"%s\"}",
                     splits[0],
                     splits[1],
                     splits[2],
                     splits[3],
-                    instant.toString());
+                    SQL_TIMESTAMP_FORMAT.format(dateTime));
                 consumer.accept(outline);
                 counter++;
                 if (counter >= speed) {
@@ -142,6 +165,13 @@ public class SourceGenerator {
                     }
                     start = end;
                     counter = 0;
+                }
+                if (currentLine == 10) {
+                    System.out.println("Start sending messages to Kafka...");
+                }
+                if (currentLine >= endLine) {
+                    System.out.println("send " + currentLine + " lines.");
+                    break;
                 }
             }
             reader.close();
