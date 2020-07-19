@@ -16,7 +16,7 @@
 
 ```bash
 mkdir flink-sql-demo; cd flink-sql-demo;
-https://raw.githubusercontent.com/wuchong/flink-sql-demo/v1.11.0/docker-compose.yml
+wget https://raw.githubusercontent.com/wuchong/flink-sql-demo/v1.11-CN/docker-compose.yml
 ```
 
 该 Docker Compose 中包含的容器有：
