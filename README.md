@@ -217,17 +217,6 @@ CREATE TABLE cumulative_uv (
 );
 ```
 
-为了实现该曲线，我们可以先通过 OVER WINDOW 计算出每条数据的当前分钟，以及当前累计 uv（从0点开始到当前行为止的独立用户数）。 uv 的统计我们通过内置的 `COUNT(DISTINCT user_id)`来完成，Flink SQL 内部对 COUNT DISTINCT 做了非常多的优化，因此可以放心使用。
-
-<!--```sql
-CREATE VIEW uv_per_10min AS
-SELECT
-  MAX(SUBSTR(DATE_FORMAT(ts, 'HH:mm'),1,4) || '0') OVER w AS time_str,
-  COUNT(DISTINCT user_id) OVER w AS uv
-FROM user_behavior
-WINDOW w AS (ORDER BY proctime ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
-```-->
-
 为了实现该曲线，我们先抽取出日期和时间字段，我们使用 `DATE_FORMAT` 抽取出基本的日期与时间，再用 `SUBSTR` 和 字符串连接函数 `||` 将时间修正到10分钟级别，如: `12:10`, `12:20`。其次，我们在外层查询上基于日期分组，求当前最大的时间，和 UV，写入到 Elasticsearch 的索引中。UV 的统计我们通过内置的 `COUNT(DISTINCT user_id)`来完成，Flink SQL 内部对 COUNT DISTINCT 做了非常多的优化，因此可以放心使用。
 
 这里之所以需要求最大的时间，同时又按日期+时间作为主键写入到 Elasticsearch，是因为我们在计算累积 UV 数。
