@@ -6,4 +6,4 @@ You can download the data here: https://drive.google.com/file/d/1P4BAZnpCY-knMt5
 
 This is a repository to build the dockers which will be used in the tuturial.
 
-Blog: http://wuchong.me/blog/2020/02/25/demo-building-real-time-application-with-flink-sql/
+Blog: https://flink.apache.org/2020/07/28/flink-sql-demo-building-e2e-streaming-application.html
