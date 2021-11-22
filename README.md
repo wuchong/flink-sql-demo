@@ -29,6 +29,8 @@ wget https://raw.githubusercontent.com/SwimSweet/flink-sql-demo/v1.13-CN/docker-
 - **Zookeeper:** Kafka 容器依赖。
 - **Elasticsearch:** 主要存储 Flink SQL 产出的数据。
 - **Kibana:** 可视化 Elasticsearch 中的数据。
+- **Hive:** Hive Metastore服务、Hive Server及使用postgresql做元数据存储
+- **Hdfs集群:** 包含一个namenode和一个datanode的HDFS集群
 
 在启动容器前，建议修改 Docker 的配置，将资源调整到 4GB 以及 4核。启动所有的容器，只需要在 `docker-compose.yml` 所在目录下运行如下命令。
 
@@ -294,9 +296,96 @@ GROUP BY category_name;
 
 Kibana 还提供了非常丰富的图形和可视化选项，感兴趣的用户可以用 Flink SQL 对数据进行更多维度的分析，并使用 Kibana 展示出可视化图，并观测图形数据的实时变化。
 
+## 支持连接Hive
+本docker-compose加了Hive和Hadoop相关镜像。支持对Hive。HDFS进行连接学习。
+```sql
+CREATE CATALOG MyCatalog
+  WITH (
+    'type' = 'hive',
+    'hive-conf-dir'='/opt/hive-conf',
+    'hive-version'='2.3.2'
+  );
+```
+转换catalog
+```sql
+use catalog MyCatalog;
+```
+### 进入 HIVE 容器 Beeline
+```bash
+docker-compose exec hive-server bash
+```
+### 建pokes表并加载数据
+```bash
+$ docker-compose exec hive-server bash
+> /opt/hive/bin/beeline -u jdbc:hive2://localhost:10000
+> CREATE TABLE pokes (foo INT, bar STRING);
+> LOAD DATA LOCAL INPATH '/opt/hive/examples/files/kv1.txt' OVERWRITE INTO TABLE pokes;
+```
+此时在Flink Sql客户端 hive 的catalog可以看到有表注册进去。
+```sql
+Flink SQL> show tables;
++------------+
+| table name |
++------------+
+|      pokes |
++------------+
+```
+此时可以进行对hive中数据表进行操作。
+```sql
+Flink SQL> select * from pokes;
+```
+
+```
+                            foo                            bar
+                             67                         val_67
+                            384                        val_384
+                            379                        val_379
+                             18                         val_18
+                            462                        val_462
+                            492                        val_492
+                            100                        val_100
+                            298                        val_298
+                              9                          val_9
+                            341                        val_341
+                            498                        val_498
+                            146                        val_146
+                            458                        val_458
+                            362                        val_362
+                            186                        val_186
+                            285                        val_285
+                            348                        val_348
+                            167                        val_167
+                             18                         val_18
+                            273                        val_273
+                            183                        val_183
+                            281                        val_281
+                            344                        val_344
+                             97                         val_97
+                            469                        val_469
+                            315                        val_315
+                             84                         val_84
+                             28                         val_28
+                             37                         val_37
+                            448                        val_448
+                            152                        val_152
+                            348                        val_348
+                            307                        val_307
+                            194                        val_194
+                            414                        val_414
+                            477                        val_477
+                            222                        val_222
+                            126                        val_126
+                             90                         val_90
+                            169                        val_169
+                            403                        val_403
+                            400                        val_400
+                            200                        val_200
+                             97                         val_97
+```
+
+
+
 ## 结尾
 
 在本文中，我们展示了如何使用 Flink SQL 集成 Kafka, MySQL, Elasticsearch 以及 Kibana 来快速搭建一个实时分析应用。整个过程无需一行 Java/Scala 代码，使用 SQL 纯文本即可完成。期望通过本文，可以让读者了解到 Flink SQL 的易用和强大，包括轻松连接各种外部系统、对事件时间和乱序数据处理的原生支持、维表关联、丰富的内置函数等等。希望你能喜欢我们的实战演练，并从中获得乐趣和知识！
-
-
 
