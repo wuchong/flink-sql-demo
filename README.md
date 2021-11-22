@@ -16,7 +16,7 @@
 
 ```bash
 mkdir flink-sql-demo; cd flink-sql-demo;
-wget https://raw.githubusercontent.com/wuchong/flink-sql-demo/v1.11-CN/docker-compose.yml
+wget https://raw.githubusercontent.com/SwimSweet/flink-sql-demo/v1.13-CN/docker-compose.yml
 ```
 
 该 Docker Compose 中包含的容器有：
@@ -139,9 +139,9 @@ CREATE TABLE user_behavior (
 如上我们按照数据的格式声明了 5 个字段，除此之外，我们还通过计算列语法和 `PROCTIME()` 内置函数声明了一个产生处理时间的虚拟列。我们还通过 WATERMARK 语法，在 ts 字段上声明了 watermark 策略（容忍5秒乱序）， ts 字段因此也成了事件时间列。关于时间属性以及 DDL 语法可以阅读官方文档了解更多：
 
  - 时间属性：
-    https://ci.apache.org/projects/flink/flink-docs-release-1.11/dev/table/streaming/time_attributes.html
+   https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/dev/table/concepts/time_attributes/
  - DDL：
-    https://ci.apache.org/projects/flink/flink-docs-release-1.11/dev/table/sql/create.html#create-table
+   https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/dev/table/sql/create/
 
 在 SQL CLI 中成功创建 Kafka 表后，可以通过 `show tables;` 和 `describe user_behavior;` 来查看目前已注册的表，以及表的详细信息。我们也可以直接在 SQL CLI 中运行 `SELECT * FROM user_behavior;` 预览下数据（按`q`退出）。
 
@@ -172,12 +172,12 @@ CREATE TABLE buy_cnt_per_hour (
 
 ```sql
 INSERT INTO buy_cnt_per_hour
-SELECT HOUR(TUMBLE_START(ts, INTERVAL '1' HOUR)), COUNT(*)
-FROM user_behavior
+SELECT HOUR(window_end) as hour_of_day ,COUNT(*) as buy_cnt
+FROM TABLE(TUMBLE(TABLE user_behavior, DESCRIPTOR(ts),INTERVAL '1' HOUR))
 WHERE behavior = 'buy'
-GROUP BY TUMBLE(ts, INTERVAL '1' HOUR);
+GROUP BY window_start, window_end;  
 ```
-这里我们使用 `HOUR` 内置函数，从一个 TIMESTAMP 列中提取出一天中第几个小时的值。使用了 `INSERT INTO`将 query 的结果持续不断地插入到上文定义的 es 结果表中（可以将 es 结果表理解成 query 的物化视图）。另外可以阅读该文档了解更多关于窗口聚合的内容：https://ci.apache.org/projects/flink/flink-docs-release-1.11/dev/table/sql/queries.html#group-windows
+这里我们使用 `HOUR` 内置函数，从一个 TIMESTAMP 列中提取出一天中第几个小时的值。使用了 `INSERT INTO`将 query 的结果持续不断地插入到上文定义的 es 结果表中（可以将 es 结果表理解成 query 的物化视图）。另外可以阅读该文档了解更多关于窗口聚合的内容：https://nightlies.apache.org/flink/flink-docs-release-1.13/zh/docs/dev/table/sql/queries/window-agg/
 
 在 Flink SQL CLI 中运行上述查询后，在 Flink Web UI 中就能看到提交的任务，该任务是一个流式任务，因此会一直运行。
 
@@ -223,14 +223,9 @@ CREATE TABLE cumulative_uv (
 
 ```sql
 INSERT INTO cumulative_uv
-SELECT date_str, MAX(time_str), COUNT(DISTINCT user_id) as uv
-FROM (
-  SELECT
-    DATE_FORMAT(ts, 'yyyy-MM-dd') as date_str,
-    SUBSTR(DATE_FORMAT(ts, 'HH:mm'),1,4) || '0' as time_str,
-    user_id
-  FROM user_behavior)
-GROUP BY date_str;
+SELECT   DATE_FORMAT(window_end, 'yyyy-MM-dd')as date_str, SUBSTR(DATE_FORMAT(window_end, 'HH:mm'),1,4) || '0' as time_str,COUNT(DISTINCT user_id) as UV
+FROM TABLE(CUMULATE(TABLE user_behavior, DESCRIPTOR(ts), INTERVAL '10' MINUTES, INTERVAL '1' DAY))
+GROUP BY window_start,window_end;
 ```
 
 提交上述查询后，在 Kibana 中创建 `cumulative_uv` 的 index pattern，然后在 Dashboard 中创建一个"Line"折线图，选择 `cumulative_uv` 索引，按照如下截图中的配置（左侧）画出累计独立用户数曲线，并保存。
@@ -272,7 +267,7 @@ CREATE TABLE top_category (
 );
 ```
 
-第一步我们通过维表关联，补全类目名称。我们仍然使用 CREATE VIEW 将该查询注册成一个视图，简化逻辑。维表关联使用 temporal join 语法，可以查看文档了解更多：https://ci.apache.org/projects/flink/flink-docs-release-1.11/dev/table/streaming/joins.html#join-with-a-temporal-table
+第一步我们通过维表关联，补全类目名称。我们仍然使用 CREATE VIEW 将该查询注册成一个视图，简化逻辑。维表关联使用 temporal join 语法，可以查看文档了解更多：https://nightlies.apache.org/flink/flink-docs-release-1.13/zh/docs/dev/table/sql/queries/joins/
 
 ```sql
 CREATE VIEW rich_user_behavior AS
