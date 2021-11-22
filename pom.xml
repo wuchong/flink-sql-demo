@@ -61,14 +61,14 @@
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-hbase_2.11</artifactId>
-            <version>1.12-SNAPSHOT</version>
+            <artifactId>flink-connector-hbase-2.2_2.11</artifactId>
+            <version>1.13.2</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-sql-connector-elasticsearch7_2.11</artifactId>
-            <version>1.12-SNAPSHOT</version>
+            <version>1.13.2</version>
         </dependency>
 
         <!-- Tests -->

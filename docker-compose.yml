@@ -1,7 +1,7 @@
 version: '2.1'
 services:
   sql-client:
-    image: jark/demo-sql-client:0.2
+    image: hjwsdocker/flink-sql-client:v4
     depends_on:
       - kafka
       - jobmanager
@@ -13,7 +13,7 @@ services:
       MYSQL_HOST: mysql
       ES_HOST: elasticsearch
   jobmanager:
-    image: flink:1.11.0-scala_2.11
+    image: flink:1.13.2-scala_2.11
     ports:
       - "8081:8081"
     command: jobmanager
@@ -22,7 +22,7 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
   taskmanager:
-    image: flink:1.11.0-scala_2.11
+    image: flink:1.13.2-scala_2.11
     depends_on:
       - jobmanager
     command: taskmanager
@@ -33,7 +33,7 @@ services:
         taskmanager.numberOfTaskSlots: 10
   datagen:
     image: jark/datagen:0.2
-    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 2000"
+    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 5000"
     depends_on:
       - kafka
     environment:

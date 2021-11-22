@@ -26,7 +26,7 @@ FROM maven:3.6-jdk-8-slim AS builder
 # Build SQL Playground Image
 ###############################################################################
 
-FROM flink:1.11.0-scala_2.11
+FROM flink:1.13.2-scala_2.11
 
 # Copy sql-client script
 COPY bin/* /opt/sql-client/
