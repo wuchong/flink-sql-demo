@@ -23,6 +23,12 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+        metrics.reporter.influxdb.scheme: http
+        metrics.reporter.influxdb.host: influxdb
+        metrics.reporter.influxdb.port: 8086
+        metrics.reporter.influxdb.db: flink_metrics
+        metrics.reporter.influxdb.consistency: ANY
   taskmanager:
     image: flink:1.13.2-scala_2.11
     depends_on:
@@ -33,6 +39,12 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 10
+        metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+        metrics.reporter.influxdb.scheme: http
+        metrics.reporter.influxdb.host: influxdb
+        metrics.reporter.influxdb.port: 8086
+        metrics.reporter.influxdb.db: flink_metrics
+        metrics.reporter.influxdb.consistency: ANY
   datagen:
     image: jark/datagen:0.2
     command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 5000"
@@ -133,6 +145,17 @@ services:
     image: shawnzhu/prestodb:0.181
     ports:
       - "8080:8080"
+  influxdb:
+    image: influxdb:1.8.0
+    entrypoint:
+      - /entrypoint.sh
+    ports:
+      - "8086:8086"
+    command: sh -c "sleep 10 && influx -execute \"create database flink_metrics;\" & influxd "
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
 volumes:
   namenode:
   datanode:
