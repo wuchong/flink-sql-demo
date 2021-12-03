@@ -1,11 +1,13 @@
 version: '2.1'
 services:
   sql-client:
-    image: jark/demo-sql-client:0.2
+    image: hjwsdocker/flink-sql-client:v4
     depends_on:
       - kafka
       - jobmanager
       - elasticsearch
+    env_file:
+      - ./hadoop-hive.env
     environment:
       FLINK_JOBMANAGER_HOST: jobmanager
       ZOOKEEPER_CONNECT: zookeeper
@@ -13,7 +15,7 @@ services:
       MYSQL_HOST: mysql
       ES_HOST: elasticsearch
   jobmanager:
-    image: flink:1.11.0-scala_2.11
+    image: flink:1.13.2-scala_2.11
     ports:
       - "8081:8081"
     command: jobmanager
@@ -21,8 +23,14 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
+        metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+        metrics.reporter.influxdb.scheme: http
+        metrics.reporter.influxdb.host: influxdb
+        metrics.reporter.influxdb.port: 8086
+        metrics.reporter.influxdb.db: flink_metrics
+        metrics.reporter.influxdb.consistency: ANY
   taskmanager:
-    image: flink:1.11.0-scala_2.11
+    image: flink:1.13.2-scala_2.11
     depends_on:
       - jobmanager
     command: taskmanager
@@ -31,9 +39,15 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 10
+        metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+        metrics.reporter.influxdb.scheme: http
+        metrics.reporter.influxdb.host: influxdb
+        metrics.reporter.influxdb.port: 8086
+        metrics.reporter.influxdb.db: flink_metrics
+        metrics.reporter.influxdb.consistency: ANY
   datagen:
     image: jark/datagen:0.2
-    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 2000"
+    command: "java -classpath /opt/datagen/flink-sql-demo.jar myflink.SourceGenerator --input /opt/datagen/user_behavior.log --output kafka kafka:9094 --speedup 5000"
     depends_on:
       - kafka
     environment:
@@ -86,3 +100,62 @@ services:
     image: docker.elastic.co/kibana/kibana:7.6.0
     ports:
       - "5601:5601"
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
+    volumes:
+      - namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop-hive.env
+    ports:
+      - "50070:50070"
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
+    volumes:
+      - datanode:/hadoop/dfs/data
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070"
+    ports:
+      - "50075:50075"
+      - "8020:8020"
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432"
+    ports:
+      - "9083:9083"
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+  presto-coordinator:
+    image: shawnzhu/prestodb:0.181
+    ports:
+      - "8080:8080"
+  influxdb:
+    image: influxdb:1.8.0
+    entrypoint:
+      - /entrypoint.sh
+    ports:
+      - "8086:8086"
+    command: sh -c "sleep 10 && influx -execute \"create database flink_metrics;\" & influxd "
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+volumes:
+  namenode:
+  datanode:
